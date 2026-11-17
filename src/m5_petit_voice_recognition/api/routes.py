@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import PlainTextResponse
 
 from m5_petit_voice_recognition.config import settings
@@ -18,9 +18,15 @@ from m5_petit_voice_recognition.services.audio_loader import (
 from m5_petit_voice_recognition.services.sound_event_service import SoundEventService
 from m5_petit_voice_recognition.services.speaker_service import SpeakerService
 from m5_petit_voice_recognition.services.voice_feature_service import VoiceFeatureService
-from m5_petit_voice_recognition.services.whisper_service import WhisperService
-from m5_petit_voice_recognition.utils.voice_summary import build_compact_summary, build_voice_summary
-
+from m5_petit_voice_recognition.services.whisper_service import (
+    MODELS,
+    WhisperService,
+    allowed_models,
+)
+from m5_petit_voice_recognition.utils.voice_summary import (
+    build_compact_summary,
+    build_voice_summary,
+)
 
 router = APIRouter()
 whisper_service = WhisperService()
@@ -43,8 +49,12 @@ async def help_text() -> str:
     - GET /help
         Show this help text
 
+    - GET /models
+        Whisper models that can be chosen (form field "model" on transcribe / analyze_audio*)
+
     - POST /transcribe
         Transcribe audio file to text (includes speaker identification)
+        Form fields: file (audio), model (optional)
 
     - POST /extract_voice_features
         Extract voice features from audio file
@@ -88,11 +98,30 @@ async def health() -> HealthResponse:
     return HealthResponse(status="ok")
 
 
+def _model_or_400(model: str | None) -> str:
+    try:
+        return whisper_service.resolve(model)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get("/models")
+async def models() -> dict:
+    """選べる Whisper のモデル(default は WHISPER_MODEL)と、いま読み込んであるもの"""
+    names = list(dict.fromkeys([settings.whisper_model] + allowed_models()))
+    return {
+        "default": settings.whisper_model,
+        "models": [{"name": n, "id": MODELS.get(n, n)} for n in names],
+        "loaded": whisper_service.loaded(),
+    }
+
+
 @router.post("/transcribe", response_model=TranscribeResponse)
-async def transcribe(file: UploadFile = File(...)) -> TranscribeResponse:
+async def transcribe(file: UploadFile = File(...), model: str | None = Form(None)) -> TranscribeResponse:
+    name = _model_or_400(model)
     temp_path = await save_upload_to_temp(file)
     try:
-        result = whisper_service.transcribe_path(temp_path)
+        result = whisper_service.transcribe_path(temp_path, name)
         speaker, confidence = speaker_service.identify(temp_path)
         return TranscribeResponse(
             **result,
@@ -127,12 +156,13 @@ async def extract_voice_features(file: UploadFile = File(...)) -> VoiceFeaturesR
 
 
 @router.post("/analyze_audio", response_model=AnalyzeAudioResponse)
-async def analyze_audio(file: UploadFile = File(...)) -> AnalyzeAudioResponse:
+async def analyze_audio(file: UploadFile = File(...), model: str | None = Form(None)) -> AnalyzeAudioResponse:
+    name = _model_or_400(model)
     temp_path = await save_upload_to_temp(file)
     try:
         waveform, sr = load_audio_mono_16k(temp_path)
 
-        asr_result = whisper_service.transcribe_path(temp_path)
+        asr_result = whisper_service.transcribe_path(temp_path, name)
         sound_events = sound_event_service.classify_waveform(waveform, sr)
         vf = voice_feature_service.extract(waveform, sr)
         speaker, confidence = speaker_service.identify(temp_path)
@@ -165,18 +195,20 @@ async def analyze_audio(file: UploadFile = File(...)) -> AnalyzeAudioResponse:
             summary_for_claude=f"環境音: {sound_text}。音声特徴: {voice_text}",
             speaker=speaker,
             speaker_confidence=confidence,
+            model=asr_result.get("model"),
         )
     finally:
         temp_path.unlink(missing_ok=True)
 
 
 @router.post("/analyze_audio_summary")
-async def analyze_audio_summary(file: UploadFile = File(...)):
+async def analyze_audio_summary(file: UploadFile = File(...), model: str | None = Form(None)):
+    name = _model_or_400(model)
     temp_path = await save_upload_to_temp(file)
     try:
         waveform, sr = load_audio_mono_16k(temp_path)
 
-        asr_result = whisper_service.transcribe_path(temp_path)
+        asr_result = whisper_service.transcribe_path(temp_path, name)
         sound_events = sound_event_service.classify_waveform(waveform, sr)
         vf = voice_feature_service.extract(waveform, sr)
         speaker, confidence = speaker_service.identify(temp_path)
@@ -188,6 +220,7 @@ async def analyze_audio_summary(file: UploadFile = File(...)):
         )
         summary["speaker"] = speaker
         summary["speaker_confidence"] = round(confidence, 3)
+        summary["model"] = asr_result.get("model")
 
         return summary
     finally:

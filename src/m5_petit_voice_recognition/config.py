@@ -11,6 +11,16 @@ class Settings(BaseSettings):
     whisper_device: str = Field(default="cpu", alias="WHISPER_DEVICE")
     whisper_compute_type: str = Field(default="int8", alias="WHISPER_COMPUTE_TYPE")
     whisper_language: str = Field(default="ja", alias="WHISPER_LANGUAGE")
+    # 選べるモデル(カンマ区切りの名前。名前は whisper_service.MODELS か faster-whisper / Hugging Face の id)
+    whisper_models: str = Field(default="small,medium,large-v3-turbo,large-v3,kotoba-v2", alias="WHISPER_MODELS")
+    # 無音・雑音で決まり文句(「ご視聴ありがとうございました」「字幕」など)を作らないための設定
+    whisper_vad: bool = Field(default=True, alias="WHISPER_VAD")
+    whisper_no_speech_threshold: float = Field(default=0.6, alias="WHISPER_NO_SPEECH_THRESHOLD")
+    whisper_logprob_threshold: float = Field(default=-1.0, alias="WHISPER_LOGPROB_THRESHOLD")
+    whisper_blocklist: str = Field(
+        default="ご視聴ありがとうございました,ご視聴ありがとうございます,チャンネル登録,高評価,字幕",
+        alias="WHISPER_BLOCKLIST",
+    )
 
     sound_model: str = Field(default="panns", alias="SOUND_MODEL")
     sound_top_k: int = Field(default=5, alias="SOUND_TOP_K")
