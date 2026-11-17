@@ -16,6 +16,8 @@ class TranscribeResponse(BaseModel):
     duration_sec: float | None = None
     speaker: str = "unknown"
     speaker_confidence: float = 0.0
+    model: str | None = None
+    dropped: list[dict] = Field(default_factory=list)   # 決まり文句・声の無い区間として捨てた文(確かめ用)
 
 
 class VoiceFeaturesResponse(BaseModel):
@@ -41,3 +43,4 @@ class AnalyzeAudioResponse(BaseModel):
     summary_for_claude: str
     speaker: str = "unknown"
     speaker_confidence: float = 0.0
+    model: str | None = None

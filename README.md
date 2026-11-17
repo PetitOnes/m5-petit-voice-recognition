@@ -128,6 +128,10 @@ curl -X POST http://127.0.0.1:8767/register_speaker \
 | 変数名 | 説明 | デフォルト |
 | --- | --- | --- |
 | `WHISPER_MODEL` | faster-whisperのモデルサイズ(tiny/base/small/medium/large-v3など) | `small` |
+| `WHISPER_MODELS` | 選べるモデル(カンマ区切り)。リクエストのフォーム項目 `model` で選ぶ。`kotoba-v2` = kotoba-tech/kotoba-whisper-v2.0-faster(日本語向け)。`GET /models` で一覧 | `small,medium,large-v3-turbo,large-v3,kotoba-v2` |
+| `WHISPER_VAD` | 声の無い区間を先に切る(Silero VAD) | `true` |
+| `WHISPER_NO_SPEECH_THRESHOLD` / `WHISPER_LOGPROB_THRESHOLD` | 声が無さそう(この値より上)かつ自信が無い(この値より下)区間を捨てる | `0.6` / `-1.0` |
+| `WHISPER_BLOCKLIST` | 無音・雑音で Whisper が作りがちな決まり文句(カンマ区切り)。それだけの区間を捨てる(ふつうの文の中にあれば残す)。捨てた文は `dropped` に | `ご視聴ありがとうございました,…,字幕` |
 | `WHISPER_DEVICE` | `cpu` / `cuda` | `cpu` |
 | `WHISPER_COMPUTE_TYPE` | `int8`(CPU) / `float16`(GPU)など | `int8` |
 | `WHISPER_LANGUAGE` | 認識言語 | `ja` |

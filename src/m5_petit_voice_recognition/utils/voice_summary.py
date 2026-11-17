@@ -58,26 +58,26 @@ def build_compact_summary(transcript: str, sound_events: list, vf) -> dict:
         else:
             speed = "normal"
 
-    # ===== 安定性 / 疲れ =====
-    stability = "normal"
-    if vf.jitter_local and vf.hnr_db:
-        if vf.jitter_local > 0.01 or vf.hnr_db < 10:
-            stability = "slightly_unstable"
-
-    # ===== 総合 =====
-    voice_state_parts = []
-
-    if pitch:
-        voice_state_parts.append(pitch)
-    if speed:
-        voice_state_parts.append(speed)
-    if stability != "normal":
-        voice_state_parts.append("tired")
-
+    # 「疲れ」は出さない: jitter / HNR は小さいマイク(16 kHz)の雑音でいつも閾値を越え、疲れとは関係なく出ていた。
+    # 判断の言葉の代わりに数字(voice_numbers)を返し、「いつもと違うか」は使う側がその人のいつもの数字とくらべる
+    voice_state_parts = [p for p in (pitch, speed) if p]
     voice_state = ", ".join(voice_state_parts) if voice_state_parts else "unknown"
+
+    def _r(x, n=2):
+        return round(float(x), n) if x is not None else None
 
     return {
         "transcript": transcript,
         "environment": environment,
         "voice_state": voice_state,
+        "voice_numbers": {
+            "f0_mean_hz": _r(vf.f0_mean_hz, 1),
+            "f0_std_hz": _r(vf.f0_std_hz, 1),
+            "speech_rate": _r(vf.speech_rate_voiced_segments_per_sec),
+            "pause_ratio": _r(vf.pause_ratio),
+            "mean_pause_sec": _r(vf.mean_pause_sec),
+            "jitter_local": _r(vf.jitter_local, 4),
+            "shimmer_local_db": _r(vf.shimmer_local_db, 3),
+            "hnr_db": _r(vf.hnr_db),
+        },
     }
