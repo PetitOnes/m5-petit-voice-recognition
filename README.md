@@ -9,6 +9,7 @@ MCP経由ではなく素のHTTP APIにしているのは、音声認識は応答
 ## 主な機能
 
 - 音声の文字起こし（Whisper / [faster-whisper](https://github.com/SYSTRAN/faster-whisper)）
+- 音の種類(キーボード・ノック・水 など。[PANNs](https://github.com/qiuqiangkong/panns_inference)、`POST /sound_events` は文字起こしをせず、種類と音のかたちの数字だけ)
 - 話者識別（[resemblyzer](https://github.com/resemble-ai/Resemblyzer)による声紋照合。任意のIDで登録・照合できる）
 - 音声特徴量抽出（F0, MFCC, jitter, shimmer, HNRなど。librosa / parselmouth）
 - 環境音の分類（現状はダミー実装。将来的にPANNs/YAMNetに差し替え予定）
@@ -128,6 +129,8 @@ curl -X POST http://127.0.0.1:8767/register_speaker \
 | 変数名 | 説明 | デフォルト |
 | --- | --- | --- |
 | `WHISPER_MODEL` | faster-whisperのモデルサイズ(tiny/base/small/medium/large-v3など) | `small` |
+| `SOUND_MODEL` | 音の種類を見分けるモデル。`panns`(PANNs Cnn14_DecisionLevelMax、AudioSet 527 種類、何秒目に何が鳴ったかも)/ `none` | `panns` |
+| `SOUND_DEVICE` / `SOUND_CHECKPOINT` | `cpu` / `cuda`、重みの場所(空なら `~/panns_data/Cnn14_DecisionLevelMax.pth`。無ければ初回に取ってくる、約 300 MB) | `cpu` / 空 |
 | `WHISPER_MODELS` | 選べるモデル(カンマ区切り)。リクエストのフォーム項目 `model` で選ぶ。`kotoba-v2` = kotoba-tech/kotoba-whisper-v2.0-faster(日本語向け)。`GET /models` で一覧 | `small,medium,large-v3-turbo,large-v3,kotoba-v2` |
 | `WHISPER_VAD` | 声の無い区間を先に切る(Silero VAD) | `true` |
 | `WHISPER_NO_SPEECH_THRESHOLD` / `WHISPER_LOGPROB_THRESHOLD` | 声が無さそう(この値より上)かつ自信が無い(この値より下)区間を捨てる | `0.6` / `-1.0` |

@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     sound_model: str = Field(default="panns", alias="SOUND_MODEL")
     sound_top_k: int = Field(default=5, alias="SOUND_TOP_K")
     sound_min_score: float = Field(default=0.2, alias="SOUND_MIN_SCORE")
+    sound_device: str = Field(default="cpu", alias="SOUND_DEVICE")          # cpu / cuda
+    sound_checkpoint: str = Field(default="", alias="SOUND_CHECKPOINT")     # 空なら ~/panns_data/Cnn14_DecisionLevelMax.pth
 
     voice_frame_length: int = Field(default=2048, alias="VOICE_FRAME_LENGTH")
     voice_hop_length: int = Field(default=256, alias="VOICE_HOP_LENGTH")
