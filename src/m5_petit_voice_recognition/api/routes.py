@@ -56,6 +56,10 @@ async def help_text() -> str:
         Transcribe audio file to text (includes speaker identification)
         Form fields: file (audio), model (optional)
 
+    - POST /sound_events
+        What kinds of sound (AudioSet 527 classes, PANNs) and the shape of the sound, second by second.
+        Does NOT transcribe (no Whisper). Form fields: file (audio), step (sec, optional)
+
     - POST /extract_voice_features
         Extract voice features from audio file
 
@@ -128,6 +132,45 @@ async def transcribe(file: UploadFile = File(...), model: str | None = Form(None
             speaker=speaker,
             speaker_confidence=confidence,
         )
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
+def _shape(waveform, sr: int, step: float) -> list[dict]:
+    """step 秒ごとの音のかたち(数字だけ): 大きさ(dBFS)・高さの重心(Hz)・立ち上がりの強さ"""
+    import numpy as np
+
+    hop = max(1, int(sr * step))
+    out = []
+    for k, s in enumerate(range(0, len(waveform), hop)):
+        x = np.asarray(waveform[s:s + hop], dtype=np.float64)
+        if len(x) < 64:
+            break
+        rms = float(np.sqrt(np.mean(x * x)) + 1e-9)
+        spec = np.abs(np.fft.rfft(x * np.hanning(len(x))))
+        freqs = np.fft.rfftfreq(len(x), 1 / sr)
+        centroid = float((spec * freqs).sum() / (spec.sum() + 1e-9))
+        env = np.abs(x).reshape(-1, max(1, len(x) // 20))[:20].mean(axis=1) if len(x) >= 20 else np.abs(x)
+        onset = float(np.clip(np.diff(env), 0, None).sum() / (env.mean() + 1e-9)) if len(env) > 1 else 0.0
+        db = 20 * np.log10(rms)
+        out.append({"t": round(k * step, 2), "db": round(db, 1), "centroid": round(centroid), "onset": round(onset, 2)})
+    return out
+
+
+@router.post("/sound_events")
+async def sound_events(file: UploadFile = File(...), step: float = Form(1.0)) -> dict:
+    """音の種類(PANNs)と、音のかたち(数字)。声の文字起こしはしない(会話の中身は取らない)"""
+    step = min(max(step, 0.25), 10.0)
+    temp_path = await save_upload_to_temp(file)
+    try:
+        waveform, sr = load_audio_mono_16k(temp_path)
+        return {
+            "duration_sec": round(len(waveform) / sr, 2),
+            "model": "panns-cnn14-decisionlevelmax" if settings.sound_model.lower() == "panns" else None,
+            "events": sound_event_service.classify_waveform(waveform, sr),
+            "timeline": sound_event_service.timeline(waveform, sr, step),
+            "shape": _shape(waveform, sr, step),
+        }
     finally:
         temp_path.unlink(missing_ok=True)
 
@@ -221,6 +264,7 @@ async def analyze_audio_summary(file: UploadFile = File(...), model: str | None 
         summary["speaker"] = speaker
         summary["speaker_confidence"] = round(confidence, 3)
         summary["model"] = asr_result.get("model")
+        summary["sound_events"] = sound_events   # 同じ音を、声の文字起こしと 音の種類の両方に通した結果
 
         return summary
     finally:
