@@ -29,3 +29,18 @@ def test_model_choice():
         raise AssertionError
     except ValueError:
         pass
+
+
+def test_max_loaded_keeps_recent(monkeypatch):
+    import sys
+    import types
+
+    made = []
+    fake = types.SimpleNamespace(WhisperModel=lambda mid, **kw: made.append(mid) or mid)
+    monkeypatch.setitem(sys.modules, "faster_whisper", fake)
+    monkeypatch.setattr(ws.settings, "whisper_max_loaded", 2)
+    svc = ws.WhisperService()
+    for n in ("small", "kotoba-v2", "small", "large-v3-turbo"):
+        svc._get_model(n)
+    assert svc.loaded() == ["small", "large-v3-turbo"]   # kotoba-v2 がいちばん長く使われていなかった
+    assert len(made) == 3

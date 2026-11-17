@@ -24,6 +24,19 @@ def _norm(text: str) -> str:
     return re.sub(r"[\s、。!?！？・…]+", "", text)
 
 
+def _free_gpu() -> None:
+    import gc
+
+    gc.collect()
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception as e:   # noqa: BLE001  torch が無くても外せればよい
+        print("free gpu:", e)
+
+
 def allowed_models() -> list[str]:
     return [m.strip() for m in settings.whisper_models.split(",") if m.strip()]
 
@@ -64,7 +77,14 @@ class WhisperService:
         from faster_whisper import WhisperModel
 
         with self._lock:
-            if name not in self._models:
+            if name in self._models:
+                self._models[name] = self._models.pop(name)   # いちばん新しく使ったものを後ろに
+            else:
+                while len(self._models) >= max(1, settings.whisper_max_loaded):
+                    old = next(iter(self._models))
+                    print("unload whisper:", old)
+                    del self._models[old]
+                    _free_gpu()
                 print("load whisper:", name, settings.whisper_device, settings.whisper_compute_type)
                 self._models[name] = WhisperModel(
                     MODELS.get(name, name),

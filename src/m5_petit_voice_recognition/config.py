@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     # 選べるモデル(カンマ区切りの名前。名前は whisper_service.MODELS か faster-whisper / Hugging Face の id)
     whisper_models: str = Field(default="small,medium,large-v3-turbo,large-v3,kotoba-v2", alias="WHISPER_MODELS")
     # 無音・雑音で決まり文句(「ご視聴ありがとうございました」「字幕」など)を作らないための設定
+    # 同時に持っておくモデルの数(GPU のメモリが小さいとき用)。越えたら、いちばん長く使っていないものを外す
+    whisper_max_loaded: int = Field(default=2, alias="WHISPER_MAX_LOADED")
     whisper_vad: bool = Field(default=True, alias="WHISPER_VAD")
     whisper_no_speech_threshold: float = Field(default=0.6, alias="WHISPER_NO_SPEECH_THRESHOLD")
     whisper_logprob_threshold: float = Field(default=-1.0, alias="WHISPER_LOGPROB_THRESHOLD")
