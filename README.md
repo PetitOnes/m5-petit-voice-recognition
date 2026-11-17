@@ -132,6 +132,7 @@ curl -X POST http://127.0.0.1:8767/register_speaker \
 | `SOUND_MODEL` | 音の種類を見分けるモデル。`panns`(PANNs Cnn14_DecisionLevelMax、AudioSet 527 種類、何秒目に何が鳴ったかも)/ `none` | `panns` |
 | `SOUND_DEVICE` / `SOUND_CHECKPOINT` | `cpu` / `cuda`、重みの場所(空なら `~/panns_data/Cnn14_DecisionLevelMax.pth`。無ければ初回に取ってくる、約 300 MB) | `cpu` / 空 |
 | `WHISPER_MODELS` | 選べるモデル(カンマ区切り)。リクエストのフォーム項目 `model` で選ぶ。`kotoba-v2` = kotoba-tech/kotoba-whisper-v2.0-faster(日本語向け)。`GET /models` で一覧 | `small,medium,large-v3-turbo,large-v3,kotoba-v2` |
+| `WHISPER_MAX_LOADED` | 同時に持っておくモデルの数。越えたら、いちばん長く使っていないものを外す(GPU のメモリが小さいとき) | `2` |
 | `WHISPER_VAD` | 声の無い区間を先に切る(Silero VAD) | `true` |
 | `WHISPER_NO_SPEECH_THRESHOLD` / `WHISPER_LOGPROB_THRESHOLD` | 声が無さそう(この値より上)かつ自信が無い(この値より下)区間を捨てる | `0.6` / `-1.0` |
 | `WHISPER_BLOCKLIST` | 無音・雑音で Whisper が作りがちな決まり文句(カンマ区切り)。それだけの区間を捨てる(ふつうの文の中にあれば残す)。捨てた文は `dropped` に | `ご視聴ありがとうございました,…,字幕` |

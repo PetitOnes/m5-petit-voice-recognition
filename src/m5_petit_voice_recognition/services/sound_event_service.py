@@ -80,7 +80,7 @@ class SoundEventService:
         with torch.no_grad():
             out = model(torch.from_numpy(x[None, :]).to(self._device), None)["framewise_output"]
         fw = out[0].cpu().numpy()
-        return fw[: max(1, int(round(n / PANNS_SR * FPS)))]
+        return fw[: max(1, round(n / PANNS_SR * FPS))]
 
     def classify_waveform(self, waveform: np.ndarray, sample_rate: int) -> list[dict]:
         """音全体で、確からしい種類(上から SOUND_TOP_K、SOUND_MIN_SCORE 以上)"""
